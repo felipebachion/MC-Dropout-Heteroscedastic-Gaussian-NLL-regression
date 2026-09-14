@@ -1,13 +1,18 @@
 """
-General MC Dropout + Heteroscedastic Gaussian NLL regression
+General code for MC Dropout + Heteroscedastic Gaussian NLL regression
 =============================================================
+This is general code that can be used in soil spectroscopy regression applications.
+More details about its implementation can be found here:
 
-A reusable implementation for regression problems such as soil spectroscopy.
+xxxxxxxxxxxxx
 
-Framework
----------
+
+
 This implementation follows the MC Dropout / heteroscedastic likelihood
-framework described by Kendall & Gal (2017):
+framework described by Kendall & Gal (2017) - What Uncertainties Do We Need in Bayesian Deep Learning for Computer Vision?
+https://arxiv.org/abs/1703.04977
+
+
 
 """
 import numpy as np
@@ -21,7 +26,7 @@ from sklearn.metrics import mean_squared_error
 
 
 # ============================================================
-# 1. Heteroscedastic Gaussian negative log-likelihood
+# 1. Heteroscedastic Gaussian negative log-likelihood loss function:
 # L=1/2 ​log σ^2 + ((y−μ)^2)/(2σ^2​)
 # ============================================================
 
@@ -41,7 +46,7 @@ def heteroscedastic_loss(y_true, y_pred):
 
 
 # ============================================================
-# 2. Build MC Dropout neural network
+# 2. Building MC Dropout neural network
 # ============================================================
 
 def build_model(input_dim, dropout_rate=0.10, learning_rate=0.001):
@@ -84,11 +89,7 @@ def optimise_hyperparameters(X, y):
     epochs_list = [50, 100, 150]
     batch_sizes = [64, 128] # i.e. 16, 32, 64, etc.
 
-    kfold = KFold(
-        n_splits=5,
-        shuffle=True,
-        random_state=42
-    )
+    kfold = KFold(n_splits=5,shuffle=True,random_state=42)
 
     best_rmse = np.inf
     best_parameters = None
@@ -114,20 +115,12 @@ def optimise_hyperparameters(X, y):
                             learning_rate=learning_rate
                         )
 
-                        model.fit(
-                            X_train,
-                            y_train,
-                            epochs=epochs,
-                            batch_size=batch_size,
-                            verbose=0
-                        )
+                        model.fit(X_train,y_train,epochs=epochs,batch_size=batch_size,verbose=0)
 
                         # Deterministic prediction for model selection
                         pred = model(X_val, training=False).numpy()[:, 0]
 
-                        rmse = np.sqrt(
-                            mean_squared_error(y_val, pred)
-                        )
+                        rmse = np.sqrt(mean_squared_error(y_val, pred))
 
                         fold_rmse.append(rmse)
 
@@ -160,7 +153,7 @@ def optimise_hyperparameters(X, y):
 
 
 # ============================================================
-# 4. MC Dropout prediction and uncertainty decomposition
+# 4. MC Dropout prediction and uncertainties estimation (epistemic, aleatoric and predictive)
 # ============================================================
 
 def predict_mc(model, X, n_mc=50):
@@ -190,17 +183,11 @@ def predict_mc(model, X, n_mc=50):
     epistemic = np.sqrt(epistemic_variance)
 
     # Aleatoric uncertainty
-    aleatoric_variance = np.mean(
-        conditional_variances,
-        axis=0
-    )
+    aleatoric_variance = np.mean(conditional_variances,axis=0)
     aleatoric = np.sqrt(aleatoric_variance)
 
     # Predictive uncertainty
-    predictive_variance = (
-        epistemic_variance
-        + aleatoric_variance
-    )
+    predictive_variance = (epistemic_variance + aleatoric_variance)
 
     predictive = np.sqrt(predictive_variance)
 
@@ -211,10 +198,7 @@ def predict_mc(model, X, n_mc=50):
 # 5. Optimise hyperparameters
 # ============================================================
 
-best_parameters = optimise_hyperparameters(
-    X_calibration,
-    y_calibration
-)
+best_parameters = optimise_hyperparameters(X_calibration,y_calibration)
 
 
 # ============================================================
@@ -240,8 +224,4 @@ model.fit(
 # 7. Predict new samples and estimate uncertainty
 # ============================================================
 
-prediction, epistemic, aleatoric, predictive = predict_mc(
-    model,
-    X_new,
-    n_mc=50
-)
+prediction, epistemic, aleatoric, predictive = predict_mc(model,X_new,n_mc=50)
