@@ -31,6 +31,7 @@ from sklearn.metrics import mean_squared_error
 # ============================================================
 
 def heteroscedastic_loss(y_true, y_pred):
+    y_true = tf.reshape(y_true, [-1])  # always (batch_size,), The code was based on reference values with one-dimensional arrays, i.e. y_bd = y_bd.flatten()
 
     mean = y_pred[:, 0]
     log_variance = y_pred[:, 1]
